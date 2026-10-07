@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完全ローカル完結 - MP3音量アジャスター</title>
+    <!-- Tailwind CSS (スタイリング用) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- lamejs (MP3エンコード用ライブラリ) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+    <style>
+        /* スライダーのカスタムスタイル */
+        input[type=range] {
+            accent-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 sm:p-8">
+        <h1 class="text-2xl font-bold text-center text-gray-900 mb-2">MP3音量アジャスター</h1>
+        <p class="text-sm text-center text-gray-500 mb-6">サーバーにアップロードしない完全ブラウザ完結型ツール</p>
+
+        <!-- ドラッグ＆ドロップエリア -->
+        <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors duration-200">
+            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+            <p class="text-gray-600 mb-2">MP3ファイルをここにドロップ</p>
+            <p class="text-sm text-gray-400">または</p>
+            <button class="mt-2 bg-blue-50 text-blue-600 font-semibold py-2 px-4 rounded-lg hover:bg-blue-100 transition-colors">
+                ファイルを選択
+            </button>
+            <input type="file" id="file-input" accept=".mp3,audio/mpeg" class="hidden">
+        </div>
+
+        <!-- ステータス表示 -->
+        <div id="status-text" class="text-center text-sm font-medium text-blue-600 mt-4 hidden"></div>
+
+        <!-- コントロールエリア (ファイル読み込み後に表示) -->
+        <div id="control-area" class="mt-8 hidden opacity-0 transition-opacity duration-500">
+            
+            <!-- ファイル名表示 -->
+            <div class="bg-gray-100 rounded-lg p-3 mb-6 flex items-center">
+                <svg class="h-5 w-5 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                <span id="file-name" class="text-sm text-gray-700 truncate w-full">ファイル名</span>
+            </div>
+
+            <!-- 音量スライダー -->
+            <div class="mb-8">
+                <div class="flex justify-between items-end mb-2">
+                    <label class="text-sm font-bold text-gray-700">音量調整</label>
+                    <span id="volume-label" class="text-xl font-bold text-blue-600">100%</span>
+                </div>
+                <input type="range" id="volume-slider" min="0" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                <div class="flex justify-between text-xs text-gray-400 mt-2">
+                    <span>0% (無音)</span>
+                    <span>100% (元音量)</span>
+                    <span>200% (2倍)</span>
+                </div>
+            </div>
+
+            <!-- ボタン類 -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button id="play-btn" class="flex-1 bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl hover:bg-gray-700 transition-colors flex justify-center items-center">
+                    <span id="play-icon">▶</span>&nbsp;プレビュー再生
+                </button>
+                <button id="download-btn" class="flex-1 bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl hover:bg-blue-700 transition-colors flex justify-center items-center shadow-lg shadow-blue-200">
+                    MP3をダウンロード
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-3 text-center">※曲の長さによってはダウンロード処理に数秒〜数十秒かかる場合があります。</p>
+        </div>
+    </div>
+
+    <script>
+        let audioCtx = null;
+        let originalAudioBuffer = null;
+        let sourceNode = null;
+        let gainNode = null;
+        let isPlaying = false;
+        let currentVolume = 1.0;
+
+        // DOM要素の取得
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const statusText = document.getElementById('status-text');
+        const controlArea = document.getElementById('control-area');
+        const fileNameDisplay = document.getElementById('file-name');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeLabel = document.getElementById('volume-label');
+        const playBtn = document.getElementById('play-btn');
+        const playIcon = document.getElementById('play-icon');
+        const downloadBtn = document.getElementById('download-btn');
+
+        // ドラッグ＆ドロップのイベント
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-blue-400', 'bg-blue-50');
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // ファイル処理 (デコード)
+        async function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.mp3')) {
+                alert('MP3ファイルを選択してください。');
+                return;
+            }
+
+            fileNameDisplay.textContent = file.name;
+            statusText.classList.remove('hidden');
+            statusText.textContent = "音声を解析中...";
+            controlArea.classList.add('hidden');
+            controlArea.classList.remove('opacity-100');
+
+            // 再生中の場合は停止
+            if (isPlaying) stopPreview();
+
+            // AudioContextの初期化
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                originalAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                
+                statusText.classList.add('hidden');
+                controlArea.classList.remove('hidden');
+                // 少し遅延させてフェードイン効果
+                setTimeout(() => controlArea.classList.add('opacity-100'), 50);
+                
+                // スライダーをリセット
+                volumeSlider.value = 100;
+                currentVolume = 1.0;
+                volumeLabel.textContent = "100%";
+
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "ファイルの読み込みに失敗しました。";
+                alert("エラー: 音声データの解析に失敗しました。ファイルが壊れているか、非対応の形式の可能性があります。");
+            }
+        }
+
+        // 音量スライダーのイベント
+        volumeSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            currentVolume = val / 100;
+            volumeLabel.textContent = `${val}%`;
+            
+            // 再生中ならリアルタイムに音量を反映
+            if (gainNode) {
+                gainNode.gain.value = currentVolume;
+            }
+        });
+
+        // プレビュー再生・停止
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                stopPreview();
+            } else {
+                startPreview();
+            }
+        });
+
+        function startPreview() {
+            if (!originalAudioBuffer) return;
+
+            // バッファソースとゲインノードを作成
+            sourceNode = audioCtx.createBufferSource();
+            sourceNode.buffer = originalAudioBuffer;
+            
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = currentVolume;
+
+            // 接続: ソース -> ゲイン -> スピーカー(destination)
+            sourceNode.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            sourceNode.start(0);
+            isPlaying = true;
+            playBtn.classList.replace('bg-gray-800', 'bg-red-500');
+            playBtn.classList.replace('hover:bg-gray-700', 'hover:bg-red-600');
+            playIcon.textContent = "■";
+            playBtn.innerHTML = `${playIcon.outerHTML}&nbsp;停止`;
+
+            // 再生終了時の処理
+            sourceNode.onended = () => {
+                if (isPlaying) stopPreview();
+            };
+        }
+
+        function stopPreview() {
+            if (sourceNode) {
+                sourceNode.stop();
+                sourceNode.disconnect();
+            }
+            isPlaying = false;
+            playBtn.classList.replace('bg-red-500', 'bg-gray-800');
+            playBtn.classList.replace('hover:bg-red-600', 'hover:bg-gray-700');
+            playIcon.textContent = "▶";
+            playBtn.innerHTML = `${playIcon.outerHTML}&nbsp;プレビュー再生`;
+        }
+
+        // MP3ダウンロード処理 (再エンコード)
+        downloadBtn.addEventListener('click', async () => {
+            if (!originalAudioBuffer) return;
+
+            // プレビュー中なら止める
+            if (isPlaying) stopPreview();
+
+            // UIを処理中状態にする
+            const originalBtnText = downloadBtn.innerHTML;
+            downloadBtn.disabled = true;
+            downloadBtn.classList.add('opacity-70', 'cursor-not-allowed');
+            downloadBtn.textContent = "エンコード中... (画面を閉じないでください)";
+
+            // UI描画を更新させるために少し待機
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            try {
+                // 1. オフラインコンテキストで音量を適用した新しいオーディオバッファを作成
+                const offlineCtx = new OfflineAudioContext(
+                    originalAudioBuffer.numberOfChannels,
+                    originalAudioBuffer.length,
+                    originalAudioBuffer.sampleRate
+                );
+                const offlineSource = offlineCtx.createBufferSource();
+                offlineSource.buffer = originalAudioBuffer;
+                
+                const offlineGain = offlineCtx.createGain();
+                offlineGain.gain.value = currentVolume;
+                
+                offlineSource.connect(offlineGain);
+                offlineGain.connect(offlineCtx.destination);
+                offlineSource.start(0);
+
+                const renderedBuffer = await offlineCtx.startRendering();
+
+                // 2. lamejsを使って PCM データを MP3 に変換
+                const channels = renderedBuffer.numberOfChannels;
+                const sampleRate = renderedBuffer.sampleRate;
+                const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 192); // 高音質192kbps
+                
+                const mp3Data = [];
+                const sampleBlockSize = 1152;
+                
+                const left = renderedBuffer.getChannelData(0);
+                const right = channels > 1 ? renderedBuffer.getChannelData(1) : left;
+
+                for (let i = 0; i < left.length; i += sampleBlockSize) {
+                    const leftChunk = left.subarray(i, i + sampleBlockSize);
+                    const rightChunk = right.subarray(i, i + sampleBlockSize);
+                    
+                    // Float32Array (-1.0 ~ 1.0) を Int16Array (-32768 ~ 32767) に変換
+                    const leftInt16 = new Int16Array(leftChunk.length);
+                    const rightInt16 = new Int16Array(rightChunk.length);
+                    
+                    for (let j = 0; j < leftChunk.length; j++) {
+                        // クリッピング(音割れ)防止処理
+                        let l = leftChunk[j];
+                        let r = rightChunk[j];
+                        l = Math.max(-1, Math.min(1, l));
+                        r = Math.max(-1, Math.min(1, r));
+                        
+                        leftInt16[j] = l < 0 ? l * 32768 : l * 32767;
+                        rightInt16[j] = r < 0 ? r * 32768 : r * 32767;
+                    }
+                    
+                    const mp3buf = encoder.encodeBuffer(leftInt16, rightInt16);
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(new Int8Array(mp3buf));
+                    }
+                }
+                
+                const mp3buf = encoder.flush();
+                if (mp3buf.length > 0) {
+                    mp3Data.push(new Int8Array(mp3buf));
+                }
+
+                // 3. Blobを作成してダウンロード実行
+                const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                // ファイル名にパーセンテージを付与
+                a.download = fileNameDisplay.textContent.replace('.mp3', '') + `_${Math.round(currentVolume * 100)}vol.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+            } catch (err) {
+                console.error(err);
+                alert("エンコード中にエラーが発生しました。");
+            } finally {
+                // UIを元に戻す
+                downloadBtn.disabled = false;
+                downloadBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                downloadBtn.innerHTML = originalBtnText;
+            }
+        });
+    </script>
+</body>
+</html>
