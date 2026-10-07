@@ -25,13 +25,15 @@ h1{font-size:1.5rem;margin:8px 0 4px;letter-spacing:.02em}
 .lead{color:var(--sub);font-size:.9rem;margin:0 0 20px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
 .drop{
-  display:block;text-align:center;padding:30px 16px;border:2px dashed var(--line);border-radius:14px;
+  position:relative;display:block;text-align:center;padding:30px 16px;border:2px dashed var(--line);border-radius:14px;
   cursor:pointer;background:var(--panel);transition:border-color .15s, background .15s;
 }
-.drop.over,.drop:focus-within{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.drop.over,.drop:focus-visible{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
 .drop strong{display:block;font-size:1.05rem}
 .drop span{color:var(--sub);font-size:.85rem}
-.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.drop input{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;
+}
 .fname{font-weight:600;word-break:break-all}
 .meta{color:var(--sub);font-size:.85rem}
 .vol-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
@@ -61,7 +63,6 @@ button,select{font:inherit;color:inherit}
 .opts label{flex:1;font-size:.8rem;color:var(--sub);display:block}
 select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:0 10px;margin-top:2px}
 progress{width:100%;height:8px;margin-top:12px;accent-color:var(--accent)}
-a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:12px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .top select{width:auto;min-height:36px;margin:0;padding:0 8px}
 .status{font-size:.85rem;color:var(--sub);margin:8px 0 0;min-height:1.4em}
@@ -74,11 +75,11 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   <div class="top"><h1 data-i18n="title"></h1><select id="lang" aria-label="Language"></select></div>
   <p class="lead" data-i18n="lead"></p>
 
-  <label class="drop" id="drop">
+  <div class="drop" id="drop" role="button" tabindex="0">
     <input type="file" id="file" accept=".mp3,.wav,.m4a,.mp4,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,video/mp4">
     <strong id="dropTitle"></strong>
     <span data-i18n="dropSub"></span>
-  </label>
+  </div>
 
   <div id="app" hidden>
     <section class="panel" style="margin-top:14px">
@@ -123,7 +124,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       </div>
       <button class="btn" id="dl" data-i18n="dl"></button>
       <progress id="prog" max="100" value="0" hidden></progress>
-      <a class="btn ghost" id="dlLink" hidden></a>
+      <button type="button" class="btn ghost" id="again" data-i18n="another" style="margin-top:12px"></button>
       <p class="status" id="status" role="status"></p>
     </section>
   </div>
@@ -144,7 +145,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   const fmtTime = s => { s = Math.max(0, s); const m = s/60|0, r = s%60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); };
   const tick0 = () => new Promise(r => setTimeout(r, 0));
 
-  // ---- 多言語対応（言語を足すときは I18N にオブジェクトを追加するだけ） ----
+  // ---- 多言語対応（保存ボタン削除に伴うメッセージ変更） ----
   const I18N = {
     ja: { _name:"日本語",
       title:"音量変更ツール",
@@ -155,7 +156,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       dl:"音量を変更して保存", note:"サーバーへのアップロードは行いません。ご自身が利用権を持つ音声のみ加工してください。",
       mute:"無音", clip:"音量が大きすぎる部分があり、音が割れる（クリップする）可能性があります。", errRead:"このファイルを読み込めませんでした。MP3・WAV・M4A・MP4形式か確認してください。動画は音声付きで、サイズが大きすぎないものをお試しください。",
       mono:"モノラル", stereo:"ステレオ", converting:"変換中…（画面を閉じないでください）", fallbackWav:"MP3エンコーダを読み込めなかったため、WAVで保存します。",
-      done:"変換が完了しました。自動で保存されない場合は、上の「保存する」をタップしてください。", fail:"変換に失敗しました：{msg}", saveLink:"保存する（{mb} MB）" },
+      done:"変換が完了し、ダウンロードを開始しました。", fail:"変換に失敗しました：{msg}" },
     en: { _name:"English",
       title:"Volume Changer",
       lead:"Load an MP3, WAV, M4A, or MP4 file (only the audio is used from video), change its volume, and trim the start and end while viewing the waveform. Save as MP3 or WAV. Your file is processed only in this browser and is never uploaded.",
@@ -165,7 +166,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       dl:"Apply volume and save", note:"Nothing is uploaded to a server. Only process audio you have the right to use.",
       mute:"Mute", clip:"Some parts may be too loud and could clip (distort).", errRead:"Could not read this file. Check that it is MP3, WAV, M4A, or MP4 with audio, and not too large.",
       mono:"Mono", stereo:"Stereo", converting:"Converting… keep this screen open.", fallbackWav:"The MP3 encoder could not be loaded, so the file will be saved as WAV.",
-      done:"Done. If the file does not save automatically, tap Save above.", fail:"Conversion failed: {msg}", saveLink:"Save ({mb} MB)" },
+      done:"Conversion complete. Download has started.", fail:"Conversion failed: {msg}" },
     zh: { _name:"中文（简体）",
       title:"音量调节工具",
       lead:"导入 MP3、WAV、M4A 或 MP4 文件（视频仅使用音频），调整音量，并在查看波形的同时裁剪开头和结尾。可保存为 MP3 或 WAV。文件仅在本设备的浏览器中处理，不会上传到任何服务器。",
@@ -175,9 +176,10 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       dl:"应用音量并保存", note:"不会上传到服务器。请仅处理你有权使用的音频。",
       mute:"静音", clip:"部分内容音量过大，可能出现削波（失真）。", errRead:"无法读取此文件。请确认是带音频的 MP3、WAV、M4A 或 MP4 格式，且文件不要过大。",
       mono:"单声道", stereo:"立体声", converting:"正在转换…请保持此页面打开。", fallbackWav:"无法加载 MP3 编码器，将以 WAV 格式保存。",
-      done:"转换完成。如果没有自动保存，请点按上方的“保存”。", fail:"转换失败：{msg}", saveLink:"保存（{mb} MB）" }
+      done:"转换完成，已开始下载。", fail:"转换失败：{msg}" }
   };
-  let cur = 'en', dropKey = 'choose', statusKey = null, statusVars = null, lastMb = '';
+  let lastUrl = null, fileId = 0;
+  let cur = 'en', dropKey = 'choose', statusKey = null, statusVars = null;
   const t = (k, v) => String((I18N[cur][k] || I18N.en[k] || k)).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null) ? v[n] : m);
   function setDrop(k){ dropKey = k; $('dropTitle').textContent = t(k); }
   function setStatus(k, v){ statusKey = k; statusVars = v || null; $('status').textContent = k ? t(k, v) : ''; }
@@ -185,6 +187,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     $('fmeta').textContent = `${fmtTime(buf.duration)} / ${buf.sampleRate} Hz / ${t(buf.numberOfChannels === 1 ? 'mono' : 'stereo')} / ${(fileSize/1048576).toFixed(1)} MB`;
   }
   let fileSize = 0;
+  
   function applyLang(){
     document.documentElement.lang = cur === 'zh' ? 'zh-CN' : cur;
     document.title = t('title');
@@ -193,7 +196,6 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     $('play').textContent = t(playing ? 'pause' : 'play');
     setDrop(dropKey); setStatus(statusKey, statusVars);
     if (buf){ renderMeta(); updateVol(); }
-    if (!$('dlLink').hidden) $('dlLink').textContent = t('saveLink', {mb: lastMb});
   }
   function initLang(){
     const sel = $('lang');
@@ -228,9 +230,15 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     peaks = out.map(v => peak ? v / peak : 0);
   }
 
+  function clearResult(){
+    if (lastUrl){ URL.revokeObjectURL(lastUrl); lastUrl = null; }
+    if (statusKey === 'done' || statusKey === 'fail' || statusKey === 'fallbackWav') setStatus(null);
+  }
   async function loadFile(f){
     if (!f) return;
     stop(true); setStatus(null);
+    fileId++;
+    clearResult(); $('prog').hidden = true;
     try{
       ensureCtx();
       setDrop('loading');
@@ -305,13 +313,14 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     const { px, W } = posX(e), t = clamp(px / W, 0, 1) * buf.duration;
     if (drag === 's') ts = Math.min(t, te - MIN); else te = Math.max(t, ts + MIN);
     offset = clamp(offset, ts, te);
+    clearResult();
     refresh();
   });
   const endDrag = () => { drag = null; };
   $('wave').addEventListener('pointerup', endDrag);
   $('wave').addEventListener('pointercancel', endDrag);
   window.addEventListener('resize', drawWave);
-  $('reset').addEventListener('click', () => { if (!buf) return; pause(); ts = 0; te = buf.duration; offset = 0; refresh(); });
+  $('reset').addEventListener('click', () => { if (!buf) return; pause(); ts = 0; te = buf.duration; offset = 0; clearResult(); refresh(); });
 
   function seekTo(t){
     const was = playing;
@@ -390,12 +399,12 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     return new Blob(parts, {type:'audio/mpeg'});
   }
 
-  let lastUrl = null;
   async function save(){
     if (!buf) return;
     pause();
-    const fmt = $('fmt').value, btn = $('dl'), prog = $('prog'), st = $('status'), link = $('dlLink');
-    btn.disabled = true; link.hidden = true; prog.hidden = false; prog.value = 0;
+    const id = fileId;
+    const fmt = $('fmt').value, btn = $('dl'), prog = $('prog'), st = $('status');
+    btn.disabled = true; prog.hidden = false; prog.value = 0;
     setStatus('converting');
     try{
       await tick0();
@@ -405,14 +414,22 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       const blob = ext === 'wav'
         ? encodeWav(chs, buf.sampleRate)
         : await encodeMp3(chs, buf.sampleRate, +$('br').value, p => { prog.value = p * 100; });
+      if (id !== fileId) return;
       if (lastUrl) URL.revokeObjectURL(lastUrl);
       lastUrl = URL.createObjectURL(blob);
       const name = `${baseName}_vol${$('vol').value}.${ext}`;
-      link.href = lastUrl; link.download = name;
-      lastMb = (blob.size/1048576).toFixed(1); link.textContent = t('saveLink', {mb: lastMb});
-      link.hidden = false; prog.value = 100;
+      
+      // 自動ダウンロードの実行
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = lastUrl;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      prog.value = 100;
       setStatus('done');
-      try{ link.click(); }catch(e){}
     }catch(e){
       console.error(e);
       setStatus('fail', {msg: String((e && e.message) || e)});
@@ -429,11 +446,18 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
   window.addEventListener('dragover', e => e.preventDefault());
   window.addEventListener('drop', e => e.preventDefault());
-  $('vol').addEventListener('input', updateVol);
-  document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { $('vol').value = b.dataset.v; updateVol(); }));
+  $('vol').addEventListener('input', () => { updateVol(); clearResult(); });
+  document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { $('vol').value = b.dataset.v; updateVol(); clearResult(); }));
   $('play').addEventListener('click', () => playing ? pause() : play());
-  $('fmt').addEventListener('change', () => { $('brWrap').hidden = $('fmt').value === 'wav'; });
+  $('fmt').addEventListener('change', () => { $('brWrap').hidden = $('fmt').value === 'wav'; clearResult(); });
+  $('br').addEventListener('change', clearResult);
   $('dl').addEventListener('click', save);
+  const fi = $('file');
+  const openPicker = () => { fi.value = ''; fi.click(); };
+  fi.addEventListener('click', e => e.stopPropagation());
+  drop.addEventListener('click', openPicker);
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openPicker(); } });
+  $('again').addEventListener('click', openPicker);
   initLang();
 })();
 </script>
