@@ -75,7 +75,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   <p class="lead" data-i18n="lead"></p>
 
   <label class="drop" id="drop">
-    <input type="file" id="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a">
+    <input type="file" id="file" accept=".mp3,.wav,.m4a,.mp4,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,video/mp4">
     <strong id="dropTitle"></strong>
     <span data-i18n="dropSub"></span>
   </label>
@@ -148,32 +148,32 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   const I18N = {
     ja: { _name:"日本語",
       title:"音量変更ツール",
-      lead:"MP3・WAV・M4Aを読み込んで、音量変更と、波形を見ながらの前後カットができます。保存形式はMP3またはWAVです。ファイルはこの端末のブラウザ内だけで処理され、外部へ送信されません。",
+      lead:"MP3・WAV・M4A・MP4（動画は音声のみ使用）を読み込んで、音量変更と、波形を見ながらの前後カットができます。保存形式はMP3またはWAVです。ファイルはこの端末のブラウザ内だけで処理され、外部へ送信されません。",
       choose:"音声ファイルを選択", loading:"読み込み中…", another:"別のファイルを選択", dropSub:"タップして選ぶ、またはここにドラッグ＆ドロップ",
       waveAria:"波形。両端の丸をドラッグして使う範囲を選択", hint:"波形の左右の丸をドラッグして、残す範囲を選びます。波形をタップすると再生位置が移動します。",
       reset:"全体に戻す", play:"再生", pause:"一時停止", volAria:"音量（パーセント）", fmtLabel:"保存形式", optWav:"WAV（無劣化）", brLabel:"MP3ビットレート（kbps）",
       dl:"音量を変更して保存", note:"サーバーへのアップロードは行いません。ご自身が利用権を持つ音声のみ加工してください。",
-      mute:"無音", clip:"音量が大きすぎる部分があり、音が割れる（クリップする）可能性があります。", errRead:"このファイルを読み込めませんでした。MP3・WAV・M4A形式か確認してください。",
+      mute:"無音", clip:"音量が大きすぎる部分があり、音が割れる（クリップする）可能性があります。", errRead:"このファイルを読み込めませんでした。MP3・WAV・M4A・MP4形式か確認してください。動画は音声付きで、サイズが大きすぎないものをお試しください。",
       mono:"モノラル", stereo:"ステレオ", converting:"変換中…（画面を閉じないでください）", fallbackWav:"MP3エンコーダを読み込めなかったため、WAVで保存します。",
       done:"変換が完了しました。自動で保存されない場合は、上の「保存する」をタップしてください。", fail:"変換に失敗しました：{msg}", saveLink:"保存する（{mb} MB）" },
     en: { _name:"English",
       title:"Volume Changer",
-      lead:"Load an MP3, WAV, or M4A file, change its volume, and trim the start and end while viewing the waveform. Save as MP3 or WAV. Your file is processed only in this browser and is never uploaded.",
+      lead:"Load an MP3, WAV, M4A, or MP4 file (only the audio is used from video), change its volume, and trim the start and end while viewing the waveform. Save as MP3 or WAV. Your file is processed only in this browser and is never uploaded.",
       choose:"Choose an audio file", loading:"Loading…", another:"Choose another file", dropSub:"Tap to choose, or drag and drop here",
       waveAria:"Waveform. Drag the handles at both ends to choose the range", hint:"Drag the two handles on the waveform to choose the part to keep. Tap the waveform to move the playhead.",
       reset:"Reset range", play:"Play", pause:"Pause", volAria:"Volume (percent)", fmtLabel:"Save as", optWav:"WAV (lossless)", brLabel:"MP3 bitrate (kbps)",
       dl:"Apply volume and save", note:"Nothing is uploaded to a server. Only process audio you have the right to use.",
-      mute:"Mute", clip:"Some parts may be too loud and could clip (distort).", errRead:"Could not read this file. Check that it is MP3, WAV, or M4A.",
+      mute:"Mute", clip:"Some parts may be too loud and could clip (distort).", errRead:"Could not read this file. Check that it is MP3, WAV, M4A, or MP4 with audio, and not too large.",
       mono:"Mono", stereo:"Stereo", converting:"Converting… keep this screen open.", fallbackWav:"The MP3 encoder could not be loaded, so the file will be saved as WAV.",
       done:"Done. If the file does not save automatically, tap Save above.", fail:"Conversion failed: {msg}", saveLink:"Save ({mb} MB)" },
     zh: { _name:"中文（简体）",
       title:"音量调节工具",
-      lead:"导入 MP3、WAV 或 M4A 文件，调整音量，并在查看波形的同时裁剪开头和结尾。可保存为 MP3 或 WAV。文件仅在本设备的浏览器中处理，不会上传到任何服务器。",
+      lead:"导入 MP3、WAV、M4A 或 MP4 文件（视频仅使用音频），调整音量，并在查看波形的同时裁剪开头和结尾。可保存为 MP3 或 WAV。文件仅在本设备的浏览器中处理，不会上传到任何服务器。",
       choose:"选择音频文件", loading:"正在加载…", another:"选择其他文件", dropSub:"点按选择，或拖放到此处",
       waveAria:"波形。拖动两端的圆点选择范围", hint:"拖动波形两端的圆点来选择要保留的范围。点按波形可移动播放位置。",
       reset:"恢复全部范围", play:"播放", pause:"暂停", volAria:"音量（百分比）", fmtLabel:"保存格式", optWav:"WAV（无损）", brLabel:"MP3 比特率 (kbps)",
       dl:"应用音量并保存", note:"不会上传到服务器。请仅处理你有权使用的音频。",
-      mute:"静音", clip:"部分内容音量过大，可能出现削波（失真）。", errRead:"无法读取此文件。请确认是 MP3、WAV 或 M4A 格式。",
+      mute:"静音", clip:"部分内容音量过大，可能出现削波（失真）。", errRead:"无法读取此文件。请确认是带音频的 MP3、WAV、M4A 或 MP4 格式，且文件不要过大。",
       mono:"单声道", stereo:"立体声", converting:"正在转换…请保持此页面打开。", fallbackWav:"无法加载 MP3 编码器，将以 WAV 格式保存。",
       done:"转换完成。如果没有自动保存，请点按上方的“保存”。", fail:"转换失败：{msg}", saveLink:"保存（{mb} MB）" }
   };
