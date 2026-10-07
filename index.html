@@ -31,7 +31,8 @@ h1{font-size:1.5rem;margin:8px 0 4px;letter-spacing:.02em}
 .drop.over,.drop:focus-visible{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
 .drop strong{display:block;font-size:1.05rem}
 .drop span{color:var(--sub);font-size:.85rem}
-.drop input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+.drop:focus-within{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
 .fname{font-weight:600;word-break:break-all}
 .meta{color:var(--sub);font-size:.85rem}
 .vol-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
@@ -61,7 +62,7 @@ button,select{font:inherit;color:inherit}
 .opts label{flex:1;font-size:.8rem;color:var(--sub);display:block}
 select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:0 10px;margin-top:2px}
 progress{width:100%;height:8px;margin-top:12px;accent-color:var(--accent)}
-a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;margin-top:12px;-webkit-user-select:none;user-select:none}
+a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:12px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .top select{width:auto;min-height:36px;margin:0;padding:0 8px}
 .status{font-size:.85rem;color:var(--sub);margin:8px 0 0;min-height:1.4em}
@@ -74,8 +75,8 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
   <div class="top"><h1 data-i18n="title"></h1><select id="lang" aria-label="Language"></select></div>
   <p class="lead" data-i18n="lead"></p>
 
-  <label class="drop" id="drop" for="file" role="button" tabindex="0">
-    <input type="file" id="file" tabindex="-1" accept=".mp3,.wav,.m4a,.mp4,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,video/mp4">
+  <label class="drop" id="drop" for="file">
+    <input type="file" id="file" accept=".mp3,.wav,.m4a,.mp4,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,video/mp4">
     <strong id="dropTitle"></strong>
     <span data-i18n="dropSub"></span>
   </label>
@@ -123,8 +124,7 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
       </div>
       <button class="btn" id="dl" data-i18n="dl"></button>
       <progress id="prog" max="100" value="0" hidden></progress>
-      <a class="btn ghost" id="dlLink" hidden></a>
-      <label class="btn ghost" id="again" for="file" role="button" tabindex="0" data-i18n="another"></label>
+      <button type="button" class="btn ghost" id="again" data-i18n="another" style="margin-top:12px"></button>
       <p class="status" id="status" role="status"></p>
     </section>
   </div>
@@ -156,7 +156,7 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
       dl:"音量を変更して保存", note:"サーバーへのアップロードは行いません。ご自身が利用権を持つ音声のみ加工してください。",
       mute:"無音", clip:"音量が大きすぎる部分があり、音が割れる（クリップする）可能性があります。", errRead:"このファイルを読み込めませんでした。MP3・WAV・M4A・MP4形式か確認してください。動画は音声付きで、サイズが大きすぎないものをお試しください。",
       mono:"モノラル", stereo:"ステレオ", converting:"変換中…（画面を閉じないでください）", fallbackWav:"MP3エンコーダを読み込めなかったため、WAVで保存します。",
-      done:"変換が完了しました。「保存する」をタップして保存してください。音量・範囲・形式を変更すると保存ボタンは消えるので、その場合はもう一度変換してください。", fail:"変換に失敗しました：{msg}", saveLink:"保存する（{mb} MB）" },
+      done:"変換が完了しました。ファイルはこの端末のダウンロード先に保存されます。", fail:"変換に失敗しました：{msg}" },
     en: { _name:"English",
       title:"Volume Changer",
       lead:"Load an MP3, WAV, M4A, or MP4 file (only the audio is used from video), change its volume, and trim the start and end while viewing the waveform. Save as MP3 or WAV. Your file is processed only in this browser and is never uploaded.",
@@ -166,7 +166,7 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
       dl:"Apply volume and save", note:"Nothing is uploaded to a server. Only process audio you have the right to use.",
       mute:"Mute", clip:"Some parts may be too loud and could clip (distort).", errRead:"Could not read this file. Check that it is MP3, WAV, M4A, or MP4 with audio, and not too large.",
       mono:"Mono", stereo:"Stereo", converting:"Converting… keep this screen open.", fallbackWav:"The MP3 encoder could not be loaded, so the file will be saved as WAV.",
-      done:"Done. Tap Save to download the file. If you change the volume, range, or format, the Save button disappears, so convert again.", fail:"Conversion failed: {msg}", saveLink:"Save ({mb} MB)" },
+      done:"Done. The file is saved to your device's downloads.", fail:"Conversion failed: {msg}" },
     zh: { _name:"中文（简体）",
       title:"音量调节工具",
       lead:"导入 MP3、WAV、M4A 或 MP4 文件（视频仅使用音频），调整音量，并在查看波形的同时裁剪开头和结尾。可保存为 MP3 或 WAV。文件仅在本设备的浏览器中处理，不会上传到任何服务器。",
@@ -176,10 +176,10 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
       dl:"应用音量并保存", note:"不会上传到服务器。请仅处理你有权使用的音频。",
       mute:"静音", clip:"部分内容音量过大，可能出现削波（失真）。", errRead:"无法读取此文件。请确认是带音频的 MP3、WAV、M4A 或 MP4 格式，且文件不要过大。",
       mono:"单声道", stereo:"立体声", converting:"正在转换…请保持此页面打开。", fallbackWav:"无法加载 MP3 编码器，将以 WAV 格式保存。",
-      done:"转换完成。请点按“保存”下载文件。若更改音量、范围或格式，保存按钮会消失，请重新转换。", fail:"转换失败：{msg}", saveLink:"保存（{mb} MB）" }
+      done:"转换完成。文件将保存到本设备的下载位置。", fail:"转换失败：{msg}" }
   };
-  let lastUrl = null, ver = 0;
-  let cur = 'en', dropKey = 'choose', statusKey = null, statusVars = null, lastMb = '';
+  let lastUrl = null, fileId = 0;
+  let cur = 'en', dropKey = 'choose', statusKey = null, statusVars = null;
   const t = (k, v) => String((I18N[cur][k] || I18N.en[k] || k)).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null) ? v[n] : m);
   function setDrop(k){ dropKey = k; $('dropTitle').textContent = t(k); }
   function setStatus(k, v){ statusKey = k; statusVars = v || null; $('status').textContent = k ? t(k, v) : ''; }
@@ -195,7 +195,6 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
     $('play').textContent = t(playing ? 'pause' : 'play');
     setDrop(dropKey); setStatus(statusKey, statusVars);
     if (buf){ renderMeta(); updateVol(); }
-    if (!$('dlLink').hidden) $('dlLink').textContent = t('saveLink', {mb: lastMb});
   }
   function initLang(){
     const sel = $('lang');
@@ -230,17 +229,14 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
     peaks = out.map(v => peak ? v / peak : 0);
   }
 
-  // 設定・範囲・ファイルが変わったら、保存ボタンと変換結果を即座に破棄する。
-  // ver を進めることで、変換中だった古い結果が後から表示されることも防ぐ。
   function clearResult(){
-    ver++;
     if (lastUrl){ URL.revokeObjectURL(lastUrl); lastUrl = null; }
-    const l = $('dlLink'); l.hidden = true; l.removeAttribute('href'); l.removeAttribute('download'); lastMb = '';
-    if (['done','fail','fallbackWav','converting'].indexOf(statusKey) >= 0) setStatus(null);
+    if (statusKey === 'done' || statusKey === 'fail' || statusKey === 'fallbackWav') setStatus(null);
   }
   async function loadFile(f){
     if (!f) return;
     stop(true); setStatus(null);
+    fileId++;
     clearResult(); $('prog').hidden = true;
     try{
       ensureCtx();
@@ -389,7 +385,7 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
     for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++){ dv.setInt16(o, chs[c][i], true); o += 2; }
     return new Blob([ab], {type:'audio/wav'});
   }
-  async function encodeMp3(chs, rate, kbps, onProg, stale){
+  async function encodeMp3(chs, rate, kbps, onProg){
     const enc = new lamejs.Mp3Encoder(chs.length, rate, kbps);
     const parts = [], N = chs[0].length, STEP = 1152 * 40;
     for (let i = 0; i < N; i += STEP){
@@ -397,7 +393,6 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
       const b = r ? enc.encodeBuffer(l, r) : enc.encodeBuffer(l);
       if (b.length) parts.push(new Int8Array(b));
       onProg(i / N); await tick0();
-      if (stale && stale()) return null;
     }
     const f = enc.flush(); if (f.length) parts.push(new Int8Array(f));
     return new Blob(parts, {type:'audio/mpeg'});
@@ -406,26 +401,26 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
   async function save(){
     if (!buf) return;
     pause();
-    const v = ver, stale = () => v !== ver;
-    const fmt = $('fmt').value, btn = $('dl'), prog = $('prog'), st = $('status'), link = $('dlLink');
-    btn.disabled = true; link.hidden = true; prog.hidden = false; prog.value = 0;
+    const id = fileId;
+    const fmt = $('fmt').value, btn = $('dl'), prog = $('prog'), st = $('status');
+    btn.disabled = true; prog.hidden = false; prog.value = 0;
     setStatus('converting');
     try{
       await tick0();
-      if (stale()) return;
       let ext = fmt;
       if (fmt === 'mp3' && typeof lamejs === 'undefined'){ ext = 'wav'; setStatus('fallbackWav'); }
       const chs = renderGained();
       const blob = ext === 'wav'
         ? encodeWav(chs, buf.sampleRate)
-        : await encodeMp3(chs, buf.sampleRate, +$('br').value, p => { prog.value = p * 100; }, stale);
-      if (!blob || stale()) return;
+        : await encodeMp3(chs, buf.sampleRate, +$('br').value, p => { prog.value = p * 100; });
+      if (id !== fileId) return;
       if (lastUrl) URL.revokeObjectURL(lastUrl);
       lastUrl = URL.createObjectURL(blob);
       const name = `${baseName}_vol${$('vol').value}.${ext}`;
-      link.href = lastUrl; link.download = name;
-      lastMb = (blob.size/1048576).toFixed(1); link.textContent = t('saveLink', {mb: lastMb});
-      link.hidden = false; prog.value = 100;
+      const a = document.createElement('a');
+      a.href = lastUrl; a.download = name; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); a.remove();
+      prog.value = 100;
       setStatus('done');
     }catch(e){
       console.error(e);
@@ -436,8 +431,7 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
   }
 
   // ---- イベント ----
-  // 選択後に value を空にする（同じファイルを再選択しても change が発火するように）。開く直前には触らない。
-  $('file').addEventListener('change', e => { const f = e.target.files[0]; loadFile(f).finally(() => { e.target.value = ''; }); });
+  $('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
   const drop = $('drop');
   ['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
@@ -445,19 +439,15 @@ a.btn,label.btn{display:flex;align-items:center;justify-content:center;text-alig
   window.addEventListener('dragover', e => e.preventDefault());
   window.addEventListener('drop', e => e.preventDefault());
   $('vol').addEventListener('input', () => { updateVol(); clearResult(); });
-  $('vol').addEventListener('change', clearResult);
   document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { $('vol').value = b.dataset.v; updateVol(); clearResult(); }));
   $('play').addEventListener('click', () => playing ? pause() : play());
   $('fmt').addEventListener('change', () => { $('brWrap').hidden = $('fmt').value === 'wav'; clearResult(); });
   $('br').addEventListener('change', clearResult);
   $('dl').addEventListener('click', save);
+  // 同じファイルを再選択しても change が発火するよう、選択ダイアログを開く直前に値を空にする
   const fi = $('file');
-  // ファイル選択は <label for="file"> のネイティブ動作で開く（スマホで JS の click() が効かない問題の回避）。
-  // キーボード操作のときだけ JS で開く。
-  fi.addEventListener('click', e => e.stopPropagation());
-  [drop, $('again')].forEach(el => el.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fi.click(); }
-  }));
+  fi.addEventListener('click', () => { fi.value = ''; });
+  $('again').addEventListener('click', () => fi.click());
   initLang();
 })();
 </script>
