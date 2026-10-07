@@ -1,322 +1,441 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>完全ローカル完結 - MP3音量アジャスター</title>
-    <!-- Tailwind CSS (スタイリング用) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- lamejs (MP3エンコード用ライブラリ) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
-    <style>
-        /* スライダーのカスタムスタイル */
-        input[type=range] {
-            accent-color: #3b82f6;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ブラウザ完結 音量変更ツール</title>
+<style>
+:root{
+  --bg:#eef2f1; --panel:#ffffff; --ink:#18262b; --sub:#5d6f75; --line:#d5dedd;
+  --accent:#0f7b6c; --accent-ink:#ffffff; --warn:#b4531a; --track:#cfdad8;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#10191c; --panel:#192428; --ink:#e6f0ee; --sub:#93a8ad; --line:#2b3a3f; --accent:#3fc2ab; --accent-ink:#06211c; --warn:#f0a066; --track:#33454a;}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  line-height:1.6; min-height:100vh;
+  padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+}
+main{max-width:560px;margin:0 auto}
+h1{font-size:1.5rem;margin:8px 0 4px;letter-spacing:.02em}
+.lead{color:var(--sub);font-size:.9rem;margin:0 0 20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.drop{
+  display:block;text-align:center;padding:30px 16px;border:2px dashed var(--line);border-radius:14px;
+  cursor:pointer;background:var(--panel);transition:border-color .15s, background .15s;
+}
+.drop.over,.drop:focus-within{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.drop strong{display:block;font-size:1.05rem}
+.drop span{color:var(--sub);font-size:.85rem}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.fname{font-weight:600;word-break:break-all}
+.meta{color:var(--sub);font-size:.85rem}
+.vol-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.vol-num{font-size:3rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.vol-num small{font-size:1.2rem;font-weight:600;margin-left:2px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:36px;background:transparent;margin:0;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:var(--track)}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--accent);border:3px solid var(--panel);box-shadow:0 0 0 1px var(--accent);margin-top:-10px}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent);border:3px solid var(--panel)}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.ticks{display:flex;justify-content:space-between;color:var(--sub);font-size:.75rem}
+.presets{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+button,select{font:inherit;color:inherit}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;min-height:36px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.btn{display:block;width:100%;min-height:52px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:1rem;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.player{display:flex;align-items:center;gap:12px}
+.player .btn{flex:1}
+#wave{width:100%;height:120px;display:block;touch-action:none;border-radius:10px;background:color-mix(in srgb,var(--track) 25%,var(--panel))}
+.time{margin-top:6px;display:flex;justify-content:space-between;color:var(--sub);font-size:.8rem;font-variant-numeric:tabular-nums}
+.warn{color:var(--warn);font-size:.85rem;min-height:1.4em;margin:8px 0 0}
+.opts{display:flex;gap:10px;margin-bottom:12px}
+.opts label{flex:1;font-size:.8rem;color:var(--sub);display:block}
+select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:0 10px;margin-top:2px}
+progress{width:100%;height:8px;margin-top:12px;accent-color:var(--accent)}
+a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.top select{width:auto;min-height:36px;margin:0;padding:0 8px}
+.status{font-size:.85rem;color:var(--sub);margin:8px 0 0;min-height:1.4em}
+.note{font-size:.78rem;color:var(--sub);text-align:center;margin-top:18px}
+[hidden]{display:none!important}
+</style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex items-center justify-center p-4">
+<body>
+<main>
+  <div class="top"><h1 data-i18n="title"></h1><select id="lang" aria-label="Language"></select></div>
+  <p class="lead" data-i18n="lead"></p>
 
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 sm:p-8">
-        <h1 class="text-2xl font-bold text-center text-gray-900 mb-2">MP3音量アジャスター</h1>
-        <p class="text-sm text-center text-gray-500 mb-6">サーバーにアップロードしない完全ブラウザ完結型ツール</p>
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a">
+    <strong id="dropTitle"></strong>
+    <span data-i18n="dropSub"></span>
+  </label>
 
-        <!-- ドラッグ＆ドロップエリア -->
-        <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors duration-200">
-            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-            </svg>
-            <p class="text-gray-600 mb-2">MP3ファイルをここにドロップ</p>
-            <p class="text-sm text-gray-400">または</p>
-            <button class="mt-2 bg-blue-50 text-blue-600 font-semibold py-2 px-4 rounded-lg hover:bg-blue-100 transition-colors">
-                ファイルを選択
-            </button>
-            <input type="file" id="file-input" accept=".mp3,audio/mpeg" class="hidden">
-        </div>
+  <div id="app" hidden>
+    <section class="panel" style="margin-top:14px">
+      <div class="fname" id="fname"></div>
+      <div class="meta" id="fmeta"></div>
+    </section>
 
-        <!-- ステータス表示 -->
-        <div id="status-text" class="text-center text-sm font-medium text-blue-600 mt-4 hidden"></div>
+    <section class="panel">
+      <canvas id="wave" data-i18n-aria="waveAria"></canvas>
+      <div class="time"><span id="tStart">0:00.0</span><span id="tMid">0:00.0 / 0:00.0</span><span id="tEnd">0:00.0</span></div>
+      <p class="meta" style="margin:6px 0 12px" data-i18n="hint"></p>
+      <div class="player">
+        <button class="btn" id="play"></button>
+        <button class="btn ghost" id="reset" data-i18n="reset"></button>
+      </div>
+    </section>
 
-        <!-- コントロールエリア (ファイル読み込み後に表示) -->
-        <div id="control-area" class="mt-8 hidden opacity-0 transition-opacity duration-500">
-            
-            <!-- ファイル名表示 -->
-            <div class="bg-gray-100 rounded-lg p-3 mb-6 flex items-center">
-                <svg class="h-5 w-5 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
-                <span id="file-name" class="text-sm text-gray-700 truncate w-full">ファイル名</span>
-            </div>
+    <section class="panel">
+      <div class="vol-row">
+        <div class="vol-num"><span id="volNum">100</span><small>%</small></div>
+        <div class="meta" id="dbNum">0.0 dB</div>
+      </div>
+      <input type="range" id="vol" min="0" max="200" step="1" value="100" data-i18n-aria="volAria">
+      <div class="ticks"><span>0%</span><span>100%</span><span>200%</span></div>
+      <div class="presets">
+        <button class="chip" data-v="50">50%</button>
+        <button class="chip" data-v="100">100%</button>
+        <button class="chip" data-v="150">150%</button>
+        <button class="chip" data-v="200">200%</button>
+      </div>
+      <p class="warn" id="warn"></p>
+    </section>
 
-            <!-- 音量スライダー -->
-            <div class="mb-8">
-                <div class="flex justify-between items-end mb-2">
-                    <label class="text-sm font-bold text-gray-700">音量調整</label>
-                    <span id="volume-label" class="text-xl font-bold text-blue-600">100%</span>
-                </div>
-                <input type="range" id="volume-slider" min="0" max="200" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                <div class="flex justify-between text-xs text-gray-400 mt-2">
-                    <span>0% (無音)</span>
-                    <span>100% (元音量)</span>
-                    <span>200% (2倍)</span>
-                </div>
-            </div>
+    <section class="panel">
+      <div class="opts">
+        <label><span data-i18n="fmtLabel"></span>
+          <select id="fmt"><option value="mp3">MP3</option><option value="wav" data-i18n="optWav"></option></select>
+        </label>
+        <label id="brWrap"><span data-i18n="brLabel"></span>
+          <select id="br"><option>128</option><option selected>192</option><option>256</option><option>320</option></select>
+        </label>
+      </div>
+      <button class="btn" id="dl" data-i18n="dl"></button>
+      <progress id="prog" max="100" value="0" hidden></progress>
+      <a class="btn ghost" id="dlLink" hidden></a>
+      <p class="status" id="status" role="status"></p>
+    </section>
+  </div>
 
-            <!-- ボタン類 -->
-            <div class="flex flex-col sm:flex-row gap-3">
-                <button id="play-btn" class="flex-1 bg-gray-800 text-white font-semibold py-3 px-4 rounded-xl hover:bg-gray-700 transition-colors flex justify-center items-center">
-                    <span id="play-icon">▶</span>&nbsp;プレビュー再生
-                </button>
-                <button id="download-btn" class="flex-1 bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl hover:bg-blue-700 transition-colors flex justify-center items-center shadow-lg shadow-blue-200">
-                    MP3をダウンロード
-                </button>
-            </div>
-            <p class="text-xs text-gray-400 mt-3 text-center">※曲の長さによってはダウンロード処理に数秒〜数十秒かかる場合があります。</p>
-        </div>
-    </div>
+  <p class="note" data-i18n="note"></p>
+</main>
 
-    <script>
-        let audioCtx = null;
-        let originalAudioBuffer = null;
-        let sourceNode = null;
-        let gainNode = null;
-        let isPlaying = false;
-        let currentVolume = 1.0;
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ctx = null, gainNode = null, buf = null, src = null;
+  let playing = false, startedAt = 0, offset = 0, raf = 0, baseName = 'audio', peak = 0;
+  let ts = 0, te = 0, peaks = null, drag = null;
+  const MIN = 0.1;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const fmtTime = s => { s = Math.max(0, s); const m = s/60|0, r = s%60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); };
+  const tick0 = () => new Promise(r => setTimeout(r, 0));
 
-        // DOM要素の取得
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const statusText = document.getElementById('status-text');
-        const controlArea = document.getElementById('control-area');
-        const fileNameDisplay = document.getElementById('file-name');
-        const volumeSlider = document.getElementById('volume-slider');
-        const volumeLabel = document.getElementById('volume-label');
-        const playBtn = document.getElementById('play-btn');
-        const playIcon = document.getElementById('play-icon');
-        const downloadBtn = document.getElementById('download-btn');
+  // ---- 多言語対応（言語を足すときは I18N にオブジェクトを追加するだけ） ----
+  const I18N = {
+    ja: { _name:"日本語",
+      title:"音量変更ツール",
+      lead:"MP3・WAV・M4Aを読み込んで、音量変更と、波形を見ながらの前後カットができます。保存形式はMP3またはWAVです。ファイルはこの端末のブラウザ内だけで処理され、外部へ送信されません。",
+      choose:"音声ファイルを選択", loading:"読み込み中…", another:"別のファイルを選択", dropSub:"タップして選ぶ、またはここにドラッグ＆ドロップ",
+      waveAria:"波形。両端の丸をドラッグして使う範囲を選択", hint:"波形の左右の丸をドラッグして、残す範囲を選びます。波形をタップすると再生位置が移動します。",
+      reset:"全体に戻す", play:"再生", pause:"一時停止", volAria:"音量（パーセント）", fmtLabel:"保存形式", optWav:"WAV（無劣化）", brLabel:"MP3ビットレート（kbps）",
+      dl:"音量を変更して保存", note:"サーバーへのアップロードは行いません。ご自身が利用権を持つ音声のみ加工してください。",
+      mute:"無音", clip:"音量が大きすぎる部分があり、音が割れる（クリップする）可能性があります。", errRead:"このファイルを読み込めませんでした。MP3・WAV・M4A形式か確認してください。",
+      mono:"モノラル", stereo:"ステレオ", converting:"変換中…（画面を閉じないでください）", fallbackWav:"MP3エンコーダを読み込めなかったため、WAVで保存します。",
+      done:"変換が完了しました。自動で保存されない場合は、上の「保存する」をタップしてください。", fail:"変換に失敗しました：{msg}", saveLink:"保存する（{mb} MB）" },
+    en: { _name:"English",
+      title:"Volume Changer",
+      lead:"Load an MP3, WAV, or M4A file, change its volume, and trim the start and end while viewing the waveform. Save as MP3 or WAV. Your file is processed only in this browser and is never uploaded.",
+      choose:"Choose an audio file", loading:"Loading…", another:"Choose another file", dropSub:"Tap to choose, or drag and drop here",
+      waveAria:"Waveform. Drag the handles at both ends to choose the range", hint:"Drag the two handles on the waveform to choose the part to keep. Tap the waveform to move the playhead.",
+      reset:"Reset range", play:"Play", pause:"Pause", volAria:"Volume (percent)", fmtLabel:"Save as", optWav:"WAV (lossless)", brLabel:"MP3 bitrate (kbps)",
+      dl:"Apply volume and save", note:"Nothing is uploaded to a server. Only process audio you have the right to use.",
+      mute:"Mute", clip:"Some parts may be too loud and could clip (distort).", errRead:"Could not read this file. Check that it is MP3, WAV, or M4A.",
+      mono:"Mono", stereo:"Stereo", converting:"Converting… keep this screen open.", fallbackWav:"The MP3 encoder could not be loaded, so the file will be saved as WAV.",
+      done:"Done. If the file does not save automatically, tap Save above.", fail:"Conversion failed: {msg}", saveLink:"Save ({mb} MB)" },
+    zh: { _name:"中文（简体）",
+      title:"音量调节工具",
+      lead:"导入 MP3、WAV 或 M4A 文件，调整音量，并在查看波形的同时裁剪开头和结尾。可保存为 MP3 或 WAV。文件仅在本设备的浏览器中处理，不会上传到任何服务器。",
+      choose:"选择音频文件", loading:"正在加载…", another:"选择其他文件", dropSub:"点按选择，或拖放到此处",
+      waveAria:"波形。拖动两端的圆点选择范围", hint:"拖动波形两端的圆点来选择要保留的范围。点按波形可移动播放位置。",
+      reset:"恢复全部范围", play:"播放", pause:"暂停", volAria:"音量（百分比）", fmtLabel:"保存格式", optWav:"WAV（无损）", brLabel:"MP3 比特率 (kbps)",
+      dl:"应用音量并保存", note:"不会上传到服务器。请仅处理你有权使用的音频。",
+      mute:"静音", clip:"部分内容音量过大，可能出现削波（失真）。", errRead:"无法读取此文件。请确认是 MP3、WAV 或 M4A 格式。",
+      mono:"单声道", stereo:"立体声", converting:"正在转换…请保持此页面打开。", fallbackWav:"无法加载 MP3 编码器，将以 WAV 格式保存。",
+      done:"转换完成。如果没有自动保存，请点按上方的“保存”。", fail:"转换失败：{msg}", saveLink:"保存（{mb} MB）" }
+  };
+  let cur = 'en', dropKey = 'choose', statusKey = null, statusVars = null, lastMb = '';
+  const t = (k, v) => String((I18N[cur][k] || I18N.en[k] || k)).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null) ? v[n] : m);
+  function setDrop(k){ dropKey = k; $('dropTitle').textContent = t(k); }
+  function setStatus(k, v){ statusKey = k; statusVars = v || null; $('status').textContent = k ? t(k, v) : ''; }
+  function renderMeta(){
+    $('fmeta').textContent = `${fmtTime(buf.duration)} / ${buf.sampleRate} Hz / ${t(buf.numberOfChannels === 1 ? 'mono' : 'stereo')} / ${(fileSize/1048576).toFixed(1)} MB`;
+  }
+  let fileSize = 0;
+  function applyLang(){
+    document.documentElement.lang = cur === 'zh' ? 'zh-CN' : cur;
+    document.title = t('title');
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+    $('play').textContent = t(playing ? 'pause' : 'play');
+    setDrop(dropKey); setStatus(statusKey, statusVars);
+    if (buf){ renderMeta(); updateVol(); }
+    if (!$('dlLink').hidden) $('dlLink').textContent = t('saveLink', {mb: lastMb});
+  }
+  function initLang(){
+    const sel = $('lang');
+    Object.keys(I18N).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = I18N[k]._name; sel.appendChild(o); });
+    let saved = null; try{ saved = localStorage.getItem('vc-lang'); }catch(e){}
+    const nl = (navigator.language || 'en').toLowerCase();
+    cur = I18N[saved] ? saved : nl.indexOf('ja') === 0 ? 'ja' : nl.indexOf('zh') === 0 ? 'zh' : 'en';
+    sel.value = cur; applyLang();
+    sel.addEventListener('change', () => { cur = sel.value; applyLang(); try{ localStorage.setItem('vc-lang', cur); }catch(e){} });
+  }
 
-        // ドラッグ＆ドロップのイベント
-        dropZone.addEventListener('click', () => fileInput.click());
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('border-blue-400', 'bg-blue-50');
-        });
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-blue-400', 'bg-blue-50');
-        });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-blue-400', 'bg-blue-50');
-            if (e.dataTransfer.files.length > 0) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
-        });
+  function ensureCtx(){
+    if (!ctx){ ctx = new AC(); gainNode = ctx.createGain(); gainNode.connect(ctx.destination); }
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  const decode = ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej));
+  const gainVal = () => $('vol').value / 100;
 
-        // ファイル処理 (デコード)
-        async function handleFile(file) {
-            if (!file.name.toLowerCase().endsWith('.mp3')) {
-                alert('MP3ファイルを選択してください。');
-                return;
-            }
+  function analyze(){
+    const bins = 800, n = buf.length, per = n / bins, out = new Float32Array(bins);
+    peak = 0;
+    for (let c = 0; c < buf.numberOfChannels; c++){
+      const d = buf.getChannelData(c);
+      for (let b = 0; b < bins; b++){
+        const a = b * per | 0, e = Math.min(n, (b + 1) * per | 0), st = Math.max(1, (e - a) / 64 | 0);
+        let m = out[b];
+        for (let i = a; i < e; i += st){ const v = Math.abs(d[i]); if (v > m) m = v; }
+        out[b] = m;
+      }
+    }
+    for (const v of out) if (v > peak) peak = v;
+    peaks = out.map(v => peak ? v / peak : 0);
+  }
 
-            fileNameDisplay.textContent = file.name;
-            statusText.classList.remove('hidden');
-            statusText.textContent = "音声を解析中...";
-            controlArea.classList.add('hidden');
-            controlArea.classList.remove('opacity-100');
+  async function loadFile(f){
+    if (!f) return;
+    stop(true); setStatus(null);
+    try{
+      ensureCtx();
+      setDrop('loading');
+      buf = await decode(await f.arrayBuffer());
+    }catch(e){
+      buf = null; $('app').hidden = true;
+      setDrop('choose');
+      alert(t('errRead'));
+      return;
+    }
+    setDrop('another');
+    baseName = f.name.replace(/\.[^.]+$/, '');
+    analyze();
+    ts = 0; te = buf.duration; offset = 0;
+    $('fname').textContent = f.name;
+    fileSize = f.size; renderMeta();
+    $('vol').value = 100; updateVol();
+    $('app').hidden = false;
+    refresh();
+  }
 
-            // 再生中の場合は停止
-            if (isPlaying) stopPreview();
+  function updateVol(){
+    const v = gainVal();
+    $('volNum').textContent = $('vol').value;
+    $('dbNum').textContent = v === 0 ? t('mute') : (20*Math.log10(v)).toFixed(1) + ' dB';
+    if (gainNode) gainNode.gain.value = v;
+    $('warn').textContent = (buf && peak * v > 1) ? t('clip') : '';
+  }
 
-            // AudioContextの初期化
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
+  // ---- 波形・トリム ----
+  function pos(){ return playing ? Math.min(te, ctx.currentTime - startedAt) : offset; }
+  function refresh(){
+    if (!buf) return;
+    $('tStart').textContent = fmtTime(ts);
+    $('tEnd').textContent = fmtTime(te);
+    $('tMid').textContent = `${fmtTime(pos() - ts)} / ${fmtTime(te - ts)}`;
+    drawWave();
+  }
+  function drawWave(){
+    const cv = $('wave'), dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !peaks) return;
+    if (cv.width !== Math.round(W*dpr)){ cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); }
+    const g = cv.getContext('2d'), css = getComputedStyle(document.documentElement);
+    const accent = css.getPropertyValue('--accent'), track = css.getPropertyValue('--track'), ink = css.getPropertyValue('--ink'), panel = css.getPropertyValue('--panel');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    const x = t => t / buf.duration * W, xs = x(ts), xe = x(te), n = peaks.length, bw = Math.max(1, W / n - 0.5);
+    for (let i = 0; i < n; i++){
+      const px = i / n * W, h = Math.max(2, peaks[i] * (H - 10));
+      g.fillStyle = (px >= xs - 1 && px <= xe) ? accent : track;
+      g.fillRect(px, (H - h) / 2, bw, h);
+    }
+    g.fillStyle = accent; g.fillRect(xs - 2, 0, 4, H); g.fillRect(xe - 2, 0, 4, H);
+    [xs, xe].forEach(px => {
+      g.beginPath(); g.arc(px, H / 2, 12, 0, Math.PI * 2);
+      g.fillStyle = accent; g.fill(); g.lineWidth = 3; g.strokeStyle = panel; g.stroke();
+    });
+    g.fillStyle = ink; g.fillRect(x(pos()) - 1, 0, 2, H);
+  }
+  const posX = e => { const r = $('wave').getBoundingClientRect(); return { px: e.clientX - r.left, W: r.width }; };
 
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                originalAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                
-                statusText.classList.add('hidden');
-                controlArea.classList.remove('hidden');
-                // 少し遅延させてフェードイン効果
-                setTimeout(() => controlArea.classList.add('opacity-100'), 50);
-                
-                // スライダーをリセット
-                volumeSlider.value = 100;
-                currentVolume = 1.0;
-                volumeLabel.textContent = "100%";
+  $('wave').addEventListener('pointerdown', e => {
+    if (!buf) return;
+    const { px, W } = posX(e), xs = ts / buf.duration * W, xe = te / buf.duration * W;
+    const ds = Math.abs(px - xs), de = Math.abs(px - xe);
+    if (Math.min(ds, de) > 28){ seekTo(px / W * buf.duration); return; }
+    drag = ds < de ? 's' : de < ds ? 'e' : (px < xs ? 's' : 'e');
+    pause();
+    $('wave').setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  $('wave').addEventListener('pointermove', e => {
+    if (!drag) return;
+    const { px, W } = posX(e), t = clamp(px / W, 0, 1) * buf.duration;
+    if (drag === 's') ts = Math.min(t, te - MIN); else te = Math.max(t, ts + MIN);
+    offset = clamp(offset, ts, te);
+    refresh();
+  });
+  const endDrag = () => { drag = null; };
+  $('wave').addEventListener('pointerup', endDrag);
+  $('wave').addEventListener('pointercancel', endDrag);
+  window.addEventListener('resize', drawWave);
+  $('reset').addEventListener('click', () => { if (!buf) return; pause(); ts = 0; te = buf.duration; offset = 0; refresh(); });
 
-            } catch (err) {
-                console.error(err);
-                statusText.textContent = "ファイルの読み込みに失敗しました。";
-                alert("エラー: 音声データの解析に失敗しました。ファイルが壊れているか、非対応の形式の可能性があります。");
-            }
-        }
+  function seekTo(t){
+    const was = playing;
+    if (was){ halt(); playing = false; }
+    offset = clamp(t, ts, te);
+    if (was) play(); else refresh();
+  }
 
-        // 音量スライダーのイベント
-        volumeSlider.addEventListener('input', (e) => {
-            const val = e.target.value;
-            currentVolume = val / 100;
-            volumeLabel.textContent = `${val}%`;
-            
-            // 再生中ならリアルタイムに音量を反映
-            if (gainNode) {
-                gainNode.gain.value = currentVolume;
-            }
-        });
+  // ---- 再生 ----
+  function tick(){
+    refresh();
+    if (playing && pos() >= te - 0.03){ stop(true); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play(){
+    if (!buf) return;
+    ensureCtx();
+    gainNode.gain.value = gainVal();
+    if (offset < ts || offset >= te - 0.05) offset = ts;
+    src = ctx.createBufferSource(); src.buffer = buf; src.connect(gainNode);
+    src.start(0, offset, te - offset);
+    startedAt = ctx.currentTime - offset; playing = true;
+    $('play').textContent = t('pause');
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
+  }
+  function halt(){
+    if (src){ try{ src.onended = null; src.stop(); }catch(e){} src.disconnect(); src = null; }
+  }
+  function pause(){
+    if (!playing) return;
+    offset = pos(); halt(); playing = false;
+    $('play').textContent = t('play'); cancelAnimationFrame(raf); refresh();
+  }
+  function stop(reset){
+    halt(); playing = false; cancelAnimationFrame(raf);
+    if (reset) offset = ts;
+    $('play').textContent = t('play'); refresh();
+  }
 
-        // プレビュー再生・停止
-        playBtn.addEventListener('click', () => {
-            if (isPlaying) {
-                stopPreview();
-            } else {
-                startPreview();
-            }
-        });
+  // ---- 書き出し ----
+  function renderGained(){
+    const ch = Math.min(2, buf.numberOfChannels), g = gainVal(), out = [];
+    const i0 = Math.floor(ts * buf.sampleRate), i1 = Math.min(buf.length, Math.ceil(te * buf.sampleRate));
+    for (let c = 0; c < ch; c++){
+      const s = buf.getChannelData(c), d = new Int16Array(i1 - i0);
+      for (let i = i0; i < i1; i++){
+        let v = s[i] * g; v = v > 1 ? 1 : v < -1 ? -1 : v;
+        d[i - i0] = v < 0 ? v * 32768 : v * 32767;
+      }
+      out.push(d);
+    }
+    return out;
+  }
+  function encodeWav(chs, rate){
+    const n = chs[0].length, ch = chs.length, bytes = n * ch * 2;
+    const ab = new ArrayBuffer(44 + bytes), dv = new DataView(ab);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o+i, s.charCodeAt(i)); };
+    w(0,'RIFF'); dv.setUint32(4, 36 + bytes, true); w(8,'WAVE'); w(12,'fmt ');
+    dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,ch,true);
+    dv.setUint32(24,rate,true); dv.setUint32(28,rate*ch*2,true); dv.setUint16(32,ch*2,true); dv.setUint16(34,16,true);
+    w(36,'data'); dv.setUint32(40,bytes,true);
+    let o = 44;
+    for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++){ dv.setInt16(o, chs[c][i], true); o += 2; }
+    return new Blob([ab], {type:'audio/wav'});
+  }
+  async function encodeMp3(chs, rate, kbps, onProg){
+    const enc = new lamejs.Mp3Encoder(chs.length, rate, kbps);
+    const parts = [], N = chs[0].length, STEP = 1152 * 40;
+    for (let i = 0; i < N; i += STEP){
+      const l = chs[0].subarray(i, i + STEP), r = chs.length > 1 ? chs[1].subarray(i, i + STEP) : undefined;
+      const b = r ? enc.encodeBuffer(l, r) : enc.encodeBuffer(l);
+      if (b.length) parts.push(new Int8Array(b));
+      onProg(i / N); await tick0();
+    }
+    const f = enc.flush(); if (f.length) parts.push(new Int8Array(f));
+    return new Blob(parts, {type:'audio/mpeg'});
+  }
 
-        function startPreview() {
-            if (!originalAudioBuffer) return;
+  let lastUrl = null;
+  async function save(){
+    if (!buf) return;
+    pause();
+    const fmt = $('fmt').value, btn = $('dl'), prog = $('prog'), st = $('status'), link = $('dlLink');
+    btn.disabled = true; link.hidden = true; prog.hidden = false; prog.value = 0;
+    setStatus('converting');
+    try{
+      await tick0();
+      let ext = fmt;
+      if (fmt === 'mp3' && typeof lamejs === 'undefined'){ ext = 'wav'; setStatus('fallbackWav'); }
+      const chs = renderGained();
+      const blob = ext === 'wav'
+        ? encodeWav(chs, buf.sampleRate)
+        : await encodeMp3(chs, buf.sampleRate, +$('br').value, p => { prog.value = p * 100; });
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+      lastUrl = URL.createObjectURL(blob);
+      const name = `${baseName}_vol${$('vol').value}.${ext}`;
+      link.href = lastUrl; link.download = name;
+      lastMb = (blob.size/1048576).toFixed(1); link.textContent = t('saveLink', {mb: lastMb});
+      link.hidden = false; prog.value = 100;
+      setStatus('done');
+      try{ link.click(); }catch(e){}
+    }catch(e){
+      console.error(e);
+      setStatus('fail', {msg: String((e && e.message) || e)});
+    }finally{
+      btn.disabled = false; setTimeout(() => { prog.hidden = true; }, 800);
+    }
+  }
 
-            // バッファソースとゲインノードを作成
-            sourceNode = audioCtx.createBufferSource();
-            sourceNode.buffer = originalAudioBuffer;
-            
-            gainNode = audioCtx.createGain();
-            gainNode.gain.value = currentVolume;
-
-            // 接続: ソース -> ゲイン -> スピーカー(destination)
-            sourceNode.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            sourceNode.start(0);
-            isPlaying = true;
-            playBtn.classList.replace('bg-gray-800', 'bg-red-500');
-            playBtn.classList.replace('hover:bg-gray-700', 'hover:bg-red-600');
-            playIcon.textContent = "■";
-            playBtn.innerHTML = `${playIcon.outerHTML}&nbsp;停止`;
-
-            // 再生終了時の処理
-            sourceNode.onended = () => {
-                if (isPlaying) stopPreview();
-            };
-        }
-
-        function stopPreview() {
-            if (sourceNode) {
-                sourceNode.stop();
-                sourceNode.disconnect();
-            }
-            isPlaying = false;
-            playBtn.classList.replace('bg-red-500', 'bg-gray-800');
-            playBtn.classList.replace('hover:bg-red-600', 'hover:bg-gray-700');
-            playIcon.textContent = "▶";
-            playBtn.innerHTML = `${playIcon.outerHTML}&nbsp;プレビュー再生`;
-        }
-
-        // MP3ダウンロード処理 (再エンコード)
-        downloadBtn.addEventListener('click', async () => {
-            if (!originalAudioBuffer) return;
-
-            // プレビュー中なら止める
-            if (isPlaying) stopPreview();
-
-            // UIを処理中状態にする
-            const originalBtnText = downloadBtn.innerHTML;
-            downloadBtn.disabled = true;
-            downloadBtn.classList.add('opacity-70', 'cursor-not-allowed');
-            downloadBtn.textContent = "エンコード中... (画面を閉じないでください)";
-
-            // UI描画を更新させるために少し待機
-            await new Promise(resolve => setTimeout(resolve, 50));
-
-            try {
-                // 1. オフラインコンテキストで音量を適用した新しいオーディオバッファを作成
-                const offlineCtx = new OfflineAudioContext(
-                    originalAudioBuffer.numberOfChannels,
-                    originalAudioBuffer.length,
-                    originalAudioBuffer.sampleRate
-                );
-                const offlineSource = offlineCtx.createBufferSource();
-                offlineSource.buffer = originalAudioBuffer;
-                
-                const offlineGain = offlineCtx.createGain();
-                offlineGain.gain.value = currentVolume;
-                
-                offlineSource.connect(offlineGain);
-                offlineGain.connect(offlineCtx.destination);
-                offlineSource.start(0);
-
-                const renderedBuffer = await offlineCtx.startRendering();
-
-                // 2. lamejsを使って PCM データを MP3 に変換
-                const channels = renderedBuffer.numberOfChannels;
-                const sampleRate = renderedBuffer.sampleRate;
-                const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 192); // 高音質192kbps
-                
-                const mp3Data = [];
-                const sampleBlockSize = 1152;
-                
-                const left = renderedBuffer.getChannelData(0);
-                const right = channels > 1 ? renderedBuffer.getChannelData(1) : left;
-
-                for (let i = 0; i < left.length; i += sampleBlockSize) {
-                    const leftChunk = left.subarray(i, i + sampleBlockSize);
-                    const rightChunk = right.subarray(i, i + sampleBlockSize);
-                    
-                    // Float32Array (-1.0 ~ 1.0) を Int16Array (-32768 ~ 32767) に変換
-                    const leftInt16 = new Int16Array(leftChunk.length);
-                    const rightInt16 = new Int16Array(rightChunk.length);
-                    
-                    for (let j = 0; j < leftChunk.length; j++) {
-                        // クリッピング(音割れ)防止処理
-                        let l = leftChunk[j];
-                        let r = rightChunk[j];
-                        l = Math.max(-1, Math.min(1, l));
-                        r = Math.max(-1, Math.min(1, r));
-                        
-                        leftInt16[j] = l < 0 ? l * 32768 : l * 32767;
-                        rightInt16[j] = r < 0 ? r * 32768 : r * 32767;
-                    }
-                    
-                    const mp3buf = encoder.encodeBuffer(leftInt16, rightInt16);
-                    if (mp3buf.length > 0) {
-                        mp3Data.push(new Int8Array(mp3buf));
-                    }
-                }
-                
-                const mp3buf = encoder.flush();
-                if (mp3buf.length > 0) {
-                    mp3Data.push(new Int8Array(mp3buf));
-                }
-
-                // 3. Blobを作成してダウンロード実行
-                const blob = new Blob(mp3Data, { type: 'audio/mp3' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                // ファイル名にパーセンテージを付与
-                a.download = fileNameDisplay.textContent.replace('.mp3', '') + `_${Math.round(currentVolume * 100)}vol.mp3`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-            } catch (err) {
-                console.error(err);
-                alert("エンコード中にエラーが発生しました。");
-            } finally {
-                // UIを元に戻す
-                downloadBtn.disabled = false;
-                downloadBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                downloadBtn.innerHTML = originalBtnText;
-            }
-        });
-    </script>
+  // ---- イベント ----
+  $('file').addEventListener('change', e => loadFile(e.target.files[0]));
+  const drop = $('drop');
+  ['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => e.preventDefault());
+  $('vol').addEventListener('input', updateVol);
+  document.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { $('vol').value = b.dataset.v; updateVol(); }));
+  $('play').addEventListener('click', () => playing ? pause() : play());
+  $('fmt').addEventListener('change', () => { $('brWrap').hidden = $('fmt').value === 'wav'; });
+  $('dl').addEventListener('click', save);
+  initLang();
+})();
+</script>
 </body>
 </html>
