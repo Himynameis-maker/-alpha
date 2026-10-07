@@ -177,7 +177,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       mono:"单声道", stereo:"立体声", converting:"正在转换…请保持此页面打开。", fallbackWav:"无法加载 MP3 编码器，将以 WAV 格式保存。",
       done:"转换完成。文件将保存到本设备的下载位置。", fail:"转换失败：{msg}" }
   };
-  let lastUrl = null, fileId = 0;
+  let lastUrl = null, fileId = 0, dlDone = false;
   let cur = 'en', dropKey = 'choose', statusKey = null, statusVars = null;
   const t = (k, v) => String((I18N[cur][k] || I18N.en[k] || k)).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null) ? v[n] : m);
   function setDrop(k){ dropKey = k; $('dropTitle').textContent = t(k); }
@@ -420,18 +420,18 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       a.href = lastUrl; a.download = name; a.style.display = 'none';
       document.body.appendChild(a); a.click(); a.remove();
       prog.value = 100;
+      dlDone = true;
       setStatus('done');
     }catch(e){
       console.error(e);
       setStatus('fail', {msg: String((e && e.message) || e)});
     }finally{
       btn.disabled = false; setTimeout(() => { prog.hidden = true; }, 800);
-      setTimeout(bindInput, 600);
     }
   }
 
   // ---- イベント ----
-    const drop = $('drop');
+  const drop = $('drop');
   ['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
@@ -455,6 +455,12 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     fi.addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
   }
   bindInput();
+  // iOS Safari ではダウンロード後にファイル選択ダイアログが開かなくなる不具合があるため、
+  // ダウンロード済みの状態でラベルをタップしたらページを読み込み直して状態をリセットする
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  drop.addEventListener('click', e => {
+    if (dlDone && isIOS){ e.preventDefault(); e.stopPropagation(); location.reload(); }
+  }, true);
   window.addEventListener('pageshow', bindInput);
   initLang();
 })();
