@@ -124,7 +124,6 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       </div>
       <button class="btn" id="dl" data-i18n="dl"></button>
       <progress id="prog" max="100" value="0" hidden></progress>
-      <button type="button" class="btn ghost" id="again" data-i18n="another" style="margin-top:12px"></button>
       <p class="status" id="status" role="status"></p>
     </section>
   </div>
@@ -427,12 +426,12 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       setStatus('fail', {msg: String((e && e.message) || e)});
     }finally{
       btn.disabled = false; setTimeout(() => { prog.hidden = true; }, 800);
+      setTimeout(bindInput, 600);
     }
   }
 
   // ---- イベント ----
-  $('file').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
-  const drop = $('drop');
+    const drop = $('drop');
   ['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
@@ -445,9 +444,18 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   $('br').addEventListener('change', clearResult);
   $('dl').addEventListener('click', save);
   // 同じファイルを再選択しても change が発火するよう、選択ダイアログを開く直前に値を空にする
-  const fi = $('file');
-  fi.addEventListener('click', () => { fi.value = ''; });
-  $('again').addEventListener('click', () => fi.click());
+  // iOS Safari はダウンロード後に既存の file input が反応しなくなることがあるため、
+  // input を作り直して毎回まっさらな状態にする
+  function bindInput(){
+    const old = $('file');
+    const fi = old.cloneNode(false);
+    fi.value = '';
+    old.replaceWith(fi);
+    fi.addEventListener('click', () => { fi.value = ''; });
+    fi.addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
+  }
+  bindInput();
+  window.addEventListener('pageshow', bindInput);
   initLang();
 })();
 </script>
