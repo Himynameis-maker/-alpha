@@ -138,7 +138,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   const AC = window.AudioContext || window.webkitAudioContext;
   let ctx = null, gainNode = null, buf = null, src = null;
   let playing = false, startedAt = 0, offset = 0, raf = 0, baseName = 'audio', peak = 0;
-  let ts = 0, te = 0, peaks = null, drag = null;
+  let ts = 0, te = 0, peaks = null, drag = null, resumeAfter = false;
   const MIN = 0.1;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const fmtTime = s => { s = Math.max(0, s); const m = s/60|0, r = s%60; return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); };
@@ -150,7 +150,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       title:"音量変更ツール",
       lead:"MP3・WAV・M4A・MP4（動画は音声のみ使用）を読み込んで、音量変更と、波形を見ながらの前後カットができます。保存形式はMP3またはWAVです。ファイルはこの端末のブラウザ内だけで処理され、外部へ送信されません。",
       choose:"音声ファイルを選択", loading:"読み込み中…", another:"別のファイルを選択", dropSub:"タップして選ぶ、またはここにドラッグ＆ドロップ",
-      waveAria:"波形。両端の丸をドラッグして使う範囲を選択", hint:"波形の左右の丸をドラッグして、残す範囲を選びます。波形をタップすると再生位置が移動します。",
+      waveAria:"波形。両端の丸をドラッグして使う範囲を選択", hint:"波形の左右の丸をドラッグして、残す範囲を選びます。波形をタップするか白い再生位置バーをドラッグすると、再生位置が移動します。",
       reset:"全体に戻す", play:"再生", pause:"一時停止", volAria:"音量（パーセント）", fmtLabel:"保存形式", optWav:"WAV（無劣化）", brLabel:"MP3ビットレート（kbps）",
       dl:"音量を変更して保存", note:"サーバーへのアップロードは行いません。ご自身が利用権を持つ音声のみ加工してください。",
       mute:"無音", clip:"音量が大きすぎる部分があり、音が割れる（クリップする）可能性があります。", errRead:"このファイルを読み込めませんでした。MP3・WAV・M4A・MP4形式か確認してください。動画は音声付きで、サイズが大きすぎないものをお試しください。",
@@ -160,7 +160,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       title:"Volume Changer",
       lead:"Load an MP3, WAV, M4A, or MP4 file (only the audio is used from video), change its volume, and trim the start and end while viewing the waveform. Save as MP3 or WAV. Your file is processed only in this browser and is never uploaded.",
       choose:"Choose an audio file", loading:"Loading…", another:"Choose another file", dropSub:"Tap to choose, or drag and drop here",
-      waveAria:"Waveform. Drag the handles at both ends to choose the range", hint:"Drag the two handles on the waveform to choose the part to keep. Tap the waveform to move the playhead.",
+      waveAria:"Waveform. Drag the handles at both ends to choose the range", hint:"Drag the two handles on the waveform to choose the part to keep. Tap the waveform or drag the white playhead bar to move it.",
       reset:"Reset range", play:"Play", pause:"Pause", volAria:"Volume (percent)", fmtLabel:"Save as", optWav:"WAV (lossless)", brLabel:"MP3 bitrate (kbps)",
       dl:"Apply volume and save", note:"Nothing is uploaded to a server. Only process audio you have the right to use.",
       mute:"Mute", clip:"Some parts may be too loud and could clip (distort).", errRead:"Could not read this file. Check that it is MP3, WAV, M4A, or MP4 with audio, and not too large.",
@@ -170,7 +170,7 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       title:"音量调节工具",
       lead:"导入 MP3、WAV、M4A 或 MP4 文件（视频仅使用音频），调整音量，并在查看波形的同时裁剪开头和结尾。可保存为 MP3 或 WAV。文件仅在本设备的浏览器中处理，不会上传到任何服务器。",
       choose:"选择音频文件", loading:"正在加载…", another:"选择其他文件", dropSub:"点按选择，或拖放到此处",
-      waveAria:"波形。拖动两端的圆点选择范围", hint:"拖动波形两端的圆点来选择要保留的范围。点按波形可移动播放位置。",
+      waveAria:"波形。拖动两端的圆点选择范围", hint:"拖动波形两端的圆点来选择要保留的范围。点按波形或拖动白色播放位置条可移动播放位置。",
       reset:"恢复全部范围", play:"播放", pause:"暂停", volAria:"音量（百分比）", fmtLabel:"保存格式", optWav:"WAV（无损）", brLabel:"MP3 比特率 (kbps)",
       dl:"应用音量并保存", note:"不会上传到服务器。请仅处理你有权使用的音频。",
       mute:"静音", clip:"部分内容音量过大，可能出现削波（失真）。", errRead:"无法读取此文件。请确认是带音频的 MP3、WAV、M4A 或 MP4 格式，且文件不要过大。",
@@ -293,7 +293,8 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
       g.beginPath(); g.arc(px, H / 2, 12, 0, Math.PI * 2);
       g.fillStyle = accent; g.fill(); g.lineWidth = 3; g.strokeStyle = panel; g.stroke();
     });
-    g.fillStyle = ink; g.fillRect(x(pos()) - 1, 0, 2, H);
+    const hx = x(pos());
+    g.fillStyle = ink; g.fillRect(hx - 1.5, 0, 3, H);
   }
   const posX = e => { const r = $('wave').getBoundingClientRect(); return { px: e.clientX - r.left, W: r.width }; };
 
@@ -301,7 +302,16 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     if (!buf) return;
     const { px, W } = posX(e), xs = ts / buf.duration * W, xe = te / buf.duration * W;
     const ds = Math.abs(px - xs), de = Math.abs(px - xe);
-    if (Math.min(ds, de) > 28){ seekTo(px / W * buf.duration); return; }
+    const dp = Math.abs(px - pos() / buf.duration * W);
+    if (dp <= 20 && dp <= Math.min(ds, de)){
+      drag = 'p'; resumeAfter = playing; pause();
+      $('wave').setPointerCapture(e.pointerId); e.preventDefault(); return;
+    }
+    if (Math.min(ds, de) > 28){
+      seekTo(px / W * buf.duration);
+      drag = 'p'; resumeAfter = false;
+      $('wave').setPointerCapture(e.pointerId); e.preventDefault(); return;
+    }
     drag = ds < de ? 's' : de < ds ? 'e' : (px < xs ? 's' : 'e');
     pause();
     $('wave').setPointerCapture(e.pointerId); e.preventDefault();
@@ -309,12 +319,13 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
   $('wave').addEventListener('pointermove', e => {
     if (!drag) return;
     const { px, W } = posX(e), t = clamp(px / W, 0, 1) * buf.duration;
+    if (drag === 'p'){ offset = clamp(t, ts, te); refresh(); return; }
     if (drag === 's') ts = Math.min(t, te - MIN); else te = Math.max(t, ts + MIN);
     offset = clamp(offset, ts, te);
     clearResult();
     refresh();
   });
-  const endDrag = () => { drag = null; };
+  const endDrag = () => { const was = drag === 'p' && resumeAfter; drag = null; resumeAfter = false; if (was) play(); };
   $('wave').addEventListener('pointerup', endDrag);
   $('wave').addEventListener('pointercancel', endDrag);
   window.addEventListener('resize', drawWave);
@@ -455,11 +466,11 @@ a.btn{display:flex;align-items:center;justify-content:center;text-decoration:non
     fi.addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); });
   }
   bindInput();
-  // iOS Safari ではダウンロード後にファイル選択ダイアログが開かなくなる不具合があるため、
-  // ダウンロード済みの状態でラベルをタップしたらページを読み込み直して状態をリセットする
-  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // スマホ（iPhone/iPad/Android）ではダウンロード後にファイル選択ダイアログが開かなくなることがあるため、
+  // ダウンロード済みの状態でラベルをタップしたらページを読み込み直して状態をリセットする（PCは対象外）
+  const isMobile = /iP(hone|ad|od)|Android/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   drop.addEventListener('click', e => {
-    if (dlDone && isIOS){ e.preventDefault(); e.stopPropagation(); location.reload(); }
+    if (dlDone && isMobile){ e.preventDefault(); e.stopPropagation(); location.reload(); }
   }, true);
   window.addEventListener('pageshow', bindInput);
   initLang();
